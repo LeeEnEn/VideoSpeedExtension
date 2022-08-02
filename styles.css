@@ -5,11 +5,17 @@ p {
 }
 
 h1 {
-	font-family: Georgia;
-	font-size: 110%;
+	font-family: Arial;
+	font-size: 140%;
 	text-align: center;
 }
 
+h2 {
+    font-family: Arial;
+    font-size: 110%;
+    text-align: center;
+    padding: 10px;
+}
 .normal {
 	border-radius: 70%;
 	width: 18px;

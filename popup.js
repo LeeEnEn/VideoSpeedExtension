@@ -14,6 +14,8 @@ let txt_5 = document.getElementById('text_5');
 let txt_6 = document.getElementById('text_6');
 let txt_7 = document.getElementById('text_7');
 
+let videoTitle = document.getElementById('video_title');
+
 let HALF = 0.5;
 let THREEQUARTERS = 0.75;
 let ONE = 1;
@@ -21,6 +23,7 @@ let ONEANDQUARTER = 1.25;
 let ONEHALF = 1.5;
 let ONEANDTHREEQUARTER = 1.75;
 let TWO = 2;
+let NOVIDEOTITLE = '- No video found -';
 
 // Initialize button listeners.
 button_1.addEventListener('click', () => {
@@ -92,10 +95,11 @@ function runScript(speed) {
 	console.log('Running script');
 	chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
 		chrome.scripting.executeScript({
-			target: { tabId: tabs[0].id }, //, allFrames: true},
+			target: { tabId: tabs[0].id },
 			func: adjustSpeed,
 			args: [speed],
 		});
+		chrome.storage.sync.set({'title': tabs[0].title});
 	});
 }
 
@@ -105,10 +109,13 @@ function runScript(speed) {
  */
 function adjustSpeed(speed) {
 	let video = document.querySelector('video');
-	
+
 	if (video != null) {
 		video.playbackRate = speed;
-		console.log('Video found, adjusting speed to ' + speed + 'x');
+		console.log('Video found, adjusting speed to ' + speed);
+		chrome.storage.sync.set({'isVideoAvailable': true});
+	} else {
+	    chrome.storage.sync.set({'isVideoAvailable': false});
 	}
 }
 
@@ -188,6 +195,7 @@ function getTextVisual(playbackspeed) {
 function updateVisuals(selectedButton, selectedTxt) {
 	updateButtonVisual(selectedButton);
 	updateTextVisual(selectedTxt);
+	updateVideoTitle();
 }
 
 /**
@@ -214,6 +222,26 @@ function updateTextVisual(selectedTxt) {
 		selectedTxt.style.fontWeight = 'bold';
 		selectedTxt.style.fontSize = '125%';
 	});
+}
+
+function updateVideoTitle() {
+    chrome.storage.sync.get('isVideoAvailable', ({ isVideoAvailable }) => {
+        if (isVideoAvailable) {
+            chrome.storage.sync.get('title', ({ title }) => {
+                    setVideoTitle(title);
+                });
+        } else {
+            setVideoTitle(NOVIDEOTITLE);
+        }
+    });
+}
+
+function setVideoAvailability(availability) {
+    chrome.storage.sync.set({'isVideoAvailable': availability});
+}
+
+function setVideoTitle(title) {
+    videoTitle.textContent = title;
 }
 
 init();
