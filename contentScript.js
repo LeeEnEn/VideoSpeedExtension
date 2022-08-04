@@ -23,7 +23,7 @@ observer = new MutationObserver(function(mutations) {
 		        if (newVideo != null && newVideo.tagName == 'VIDEO') {
                     newVideo.addEventListener('loadeddata', (event) => {
                         adjustVideoSpeed(newVideo);
-                        console.log('Video found using mutation observer, adjusting speed to ' + speed + 'x');
+                        console.log('Video found using mutation observer, adjusting speed to ' + currentSpeed + 'x');
                     });
 		        }
 		    } catch (error) {
@@ -62,7 +62,7 @@ chrome.runtime.onMessage.addListener(
 
         if (playbackSpeed != null) {
             updateVideoSpeed(playbackSpeed);
-            adjustVideoSpeed(video);
+            adjustVideoSpeed(currentVideo);
         }
     }
 );
