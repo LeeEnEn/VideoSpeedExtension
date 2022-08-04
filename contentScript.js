@@ -1,5 +1,5 @@
-var speed;
-var video;
+var currentSpeed;
+var currentVideo;
 var observer;
 
 /**
@@ -7,9 +7,7 @@ var observer;
  * after the webpage has been loaded.
  */ 
 chrome.storage.sync.get('playbackspeed', ({ playbackspeed }) => {
-	speed = playbackspeed;
-
-	adjustVideoSpeed()
+	currentSpeed = playbackspeed;
 });
 
 /** 
@@ -20,17 +18,17 @@ observer = new MutationObserver(function(mutations) {
 	mutations.forEach(function(mutation) {
 		mutation.addedNodes.forEach(node => {
 		    try {
-		        var video = node.querySelector('video');
+		        var newVideo = node.querySelector('video');
 
-		        if (video != null && video.tagName == 'VIDEO') {
-		            video.addEventListener('loadeddata', (event) => {
-                        video.playbackRate = speed;
+		        if (newVideo != null && newVideo.tagName == 'VIDEO') {
+                    newVideo.addEventListener('loadeddata', (event) => {
+                        adjustVideoSpeed(newVideo);
                         console.log('Video found using mutation observer, adjusting speed to ' + speed + 'x');
                     });
 		        }
 		    } catch (error) {
 		        if (error instanceof TypeError) {
-		            console.log('Node changes is not a HTML element!');
+		            console.log('Node changes is not an object!');
 		        }
 		    }
 		});
@@ -49,11 +47,22 @@ observer.observe(document.body, {
 /**
  * Adjusts video speed.
  */
-function adjustVideoSpeed() {
-	var video = document.querySelector('video');
-	
-	if (video != null) {
-		video.playbackRate = speed;
-		console.log('Video found, adjusting speed to ' + speed + 'x');
-	}
+function adjustVideoSpeed(newVideo) {
+    currentVideo = newVideo;
+    currentVideo.playbackRate = currentSpeed;
 }
+
+function updateVideoSpeed(playbackSpeed) {
+    currentSpeed = playbackSpeed;
+}
+
+chrome.runtime.onMessage.addListener(
+    function(message, sender, sendResponse) {
+        var playbackSpeed = message.newPlaybackSpeed;
+
+        if (playbackSpeed != null) {
+            updateVideoSpeed(playbackSpeed);
+            adjustVideoSpeed(video);
+        }
+    }
+);
