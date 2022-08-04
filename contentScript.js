@@ -22,8 +22,10 @@ observer = new MutationObserver(function(mutations) {
 
 		        if (newVideo != null && newVideo.tagName == 'VIDEO') {
                     newVideo.addEventListener('loadeddata', (event) => {
-                        adjustVideoSpeed(newVideo);
                         console.log('Video found using mutation observer, adjusting speed to ' + currentSpeed + 'x');
+                        adjustVideoSpeed(newVideo);
+                        updateVideoTitle();
+
                     });
 		        }
 		    } catch (error) {
@@ -47,13 +49,30 @@ observer.observe(document.body, {
 /**
  * Adjusts video speed.
  */
-function adjustVideoSpeed(newVideo) {
-    currentVideo = newVideo;
-    currentVideo.playbackRate = currentSpeed;
+function adjustVideoSpeed(video) {
+    currentVideo = video;
+
+    if (currentVideo != null) {
+        currentVideo.playbackRate = currentSpeed;
+    } else {
+        currentVideo = document.querySelector('video');
+
+        if (currentVideo != null) {
+            currentVideo.addEventListener('loadeddata', (event) => {
+                currentVideo.playbackRate = currentSpeed;
+            })
+        } else {
+            console.log('Unable to find video on this tab!');
+        }
+    }
 }
 
 function updateVideoSpeed(playbackSpeed) {
     currentSpeed = playbackSpeed;
+}
+
+function updateVideoTitle() {
+    chrome.runtime.sendMessage({newTitle: true});
 }
 
 chrome.runtime.onMessage.addListener(
@@ -63,6 +82,11 @@ chrome.runtime.onMessage.addListener(
         if (playbackSpeed != null) {
             updateVideoSpeed(playbackSpeed);
             adjustVideoSpeed(currentVideo);
+        }
+
+        if (message.getVideo != null) {
+            let isVideoDetected = document.querySelector('video') != null;
+            sendResponse({reply: isVideoDetected});
         }
     }
 );
