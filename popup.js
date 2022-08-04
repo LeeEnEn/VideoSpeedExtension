@@ -73,7 +73,7 @@ function init() {
  * @param {double} speed 
  */
 function execute(selectedButton, selectedText, speed) {
-	runScript(speed);
+	notifyContentScript(speed);
 	updateVisuals(selectedButton, selectedText);
 	updateCurrentSpeed(speed);
 }
@@ -87,36 +87,11 @@ function updateCurrentSpeed(speed) {
 	chrome.storage.sync.set({'playbackspeed': speed });
 }
 
-/**
- * Runs the script on the current tab the user is on.
- * @param {double} speed 
- */
-function runScript(speed) {
-	console.log('Running script');
-	chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-		chrome.scripting.executeScript({
-			target: { tabId: tabs[0].id },
-			func: adjustSpeed,
-			args: [speed],
-		});
-		chrome.storage.sync.set({'title': tabs[0].title});
-	});
-}
-
-/**
- * Adjusts the video speed.
- * @param {double} speed 
- */
-function adjustSpeed(speed) {
-	let video = document.querySelector('video');
-
-	if (video != null) {
-		video.playbackRate = speed;
-		console.log('Video found, adjusting speed to ' + speed);
-		chrome.storage.sync.set({'isVideoAvailable': true});
-	} else {
-	    chrome.storage.sync.set({'isVideoAvailable': false});
-	}
+function notifyContentScript(speed) {
+    console.log('Notifying content script about speed changes.');
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {newPlaybackSpeed: speed});
+    });
 }
 
 /**
@@ -224,20 +199,17 @@ function updateTextVisual(selectedTxt) {
 	});
 }
 
+// To be updated by content_script_to_popup branch
 function updateVideoTitle() {
-    chrome.storage.sync.get('isVideoAvailable', ({ isVideoAvailable }) => {
-        if (isVideoAvailable) {
-            chrome.storage.sync.get('title', ({ title }) => {
-                    setVideoTitle(title);
-                });
-        } else {
-            setVideoTitle(NOVIDEOTITLE);
-        }
-    });
-}
-
-function setVideoAvailability(availability) {
-    chrome.storage.sync.set({'isVideoAvailable': availability});
+//    chrome.storage.sync.get('isVideoAvailable', ({ isVideoAvailable }) => {
+//        if (isVideoAvailable) {
+//            chrome.storage.sync.get('title', ({ title }) => {
+//                    setVideoTitle(title);
+//                });
+//        } else {
+//            setVideoTitle(NOVIDEOTITLE);
+//        }
+//    });
 }
 
 function setVideoTitle(title) {
