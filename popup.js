@@ -54,6 +54,16 @@ button_7.addEventListener('click', () => {
 	execute(button_7, txt_7, TWO);
 });
 
+chrome.runtime.onMessage.addListener(
+    function(message, sender, sendResponse) {
+        if (message.newTitle) {
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                setVideoTitle(tabs[0].title);
+            })
+        }
+    }
+)
+
 /**
  * Updates the popup visuals when the extension is clicked.
  */
@@ -62,7 +72,9 @@ function init() {
 		let selectedButton = getButtonVisual(playbackspeed);
 		let selectedText = getTextVisual(playbackspeed);
 		
-		execute(selectedButton, selectedText, playbackspeed);
+		//execute(selectedButton, selectedText, playbackspeed);
+		updateVisuals(selectedButton, selectedText);
+		initVideoTitle();
 	});
 }
 
@@ -170,7 +182,6 @@ function getTextVisual(playbackspeed) {
 function updateVisuals(selectedButton, selectedTxt) {
 	updateButtonVisual(selectedButton);
 	updateTextVisual(selectedTxt);
-	updateVideoTitle();
 }
 
 /**
@@ -199,17 +210,18 @@ function updateTextVisual(selectedTxt) {
 	});
 }
 
-// To be updated by content_script_to_popup branch
-function updateVideoTitle() {
-//    chrome.storage.sync.get('isVideoAvailable', ({ isVideoAvailable }) => {
-//        if (isVideoAvailable) {
-//            chrome.storage.sync.get('title', ({ title }) => {
-//                    setVideoTitle(title);
-//                });
-//        } else {
-//            setVideoTitle(NOVIDEOTITLE);
-//        }
-//    });
+function initVideoTitle() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {getVideo: true}, function(response) {
+            if (!chrome.runtime.lastError) {
+                if (response.reply) {
+                    setVideoTitle(tabs[0].title);
+                } else {
+                    setVideoTitle(NOVIDEOTITLE);
+                }
+            }
+        });
+    });
 }
 
 function setVideoTitle(title) {
