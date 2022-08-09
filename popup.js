@@ -5,7 +5,6 @@ let button_4 = document.getElementById('button_4');
 let button_5 = document.getElementById('button_5');
 let button_6 = document.getElementById('button_6');
 let button_7 = document.getElementById('button_7');
-
 let txt_1 = document.getElementById('text_1');
 let txt_2 = document.getElementById('text_2');
 let txt_3 = document.getElementById('text_3');
@@ -13,9 +12,7 @@ let txt_4 = document.getElementById('text_4');
 let txt_5 = document.getElementById('text_5');
 let txt_6 = document.getElementById('text_6');
 let txt_7 = document.getElementById('text_7');
-
 let videoTitle = document.getElementById('video_title');
-
 let HALF = 0.5;
 let THREEQUARTERS = 0.75;
 let ONE = 1;
@@ -24,6 +21,8 @@ let ONEHALF = 1.5;
 let ONEANDTHREEQUARTER = 1.75;
 let TWO = 2;
 let NOVIDEOTITLE = '- No video found -';
+
+var currentSpeed;
 
 // Initialize button listeners.
 button_1.addEventListener('click', () => {
@@ -54,27 +53,56 @@ button_7.addEventListener('click', () => {
 	execute(button_7, txt_7, TWO);
 });
 
-chrome.runtime.onMessage.addListener(
-    function(message, sender, sendResponse) {
-        if (message.newTitle) {
-            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-                setVideoTitle(tabs[0].title);
-            })
+/**
+ * Configures the runtime listener.
+ */
+function initMessageListener() {
+    chrome.runtime.onMessage.addListener(
+        function(message, sender, sendResponse) {
+            if (message.newTitle) {
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    setVideoTitle(tabs[0].title);
+                })
+            }
         }
-    }
-)
+    )
+}
 
 /**
- * Updates the popup visuals when the extension is clicked.
+ * Displays the video title upon user click.
  */
-function init() {
-	chrome.storage.sync.get('playbackspeed', ({ playbackspeed }) => {
-		let selectedButton = getButtonVisual(playbackspeed);
-		let selectedText = getTextVisual(playbackspeed);
-		
-		//execute(selectedButton, selectedText, playbackspeed);
-		updateVisuals(selectedButton, selectedText);
-		initVideoTitle();
+function initVideoTitle() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {getVideo: true}, function(response) {
+            if (!chrome.runtime.lastError) {
+                if (response.reply) {
+                    setVideoTitle(tabs[0].title);
+                } else {
+                    setVideoTitle(NOVIDEOTITLE);
+                }
+            }
+        });
+    });
+}
+
+/**
+ * Highlights button and text visuals on user click.
+ */
+function initVisuals() {
+    let buttonVisual = getButtonVisual(currentSpeed);
+    let textVisual = getTextVisual(currentSpeed);
+    updateVisuals(buttonVisual, textVisual);
+}
+
+/**
+ * Gets playback speed from chrome's storage and displays corresponding visuals.
+ */
+function initPopup() {
+	chrome.storage.sync.get('playbackSpeed', ({ playbackSpeed }) => {
+	    currentSpeed = playbackSpeed;
+	    initMessageListener();
+	    initVideoTitle();
+	    initVisuals();
 	});
 }
 
@@ -96,9 +124,14 @@ function execute(selectedButton, selectedText, speed) {
  */
 function updateCurrentSpeed(speed) {
 	console.log('Updating current speed to: ' + speed);
-	chrome.storage.sync.set({'playbackspeed': speed });
+	chrome.storage.sync.set({'playbackSpeed': speed });
+	currentSpeed = speed;
 }
 
+/**
+ * Sends a message to content script to update playback speed.
+ * @param {double} speed
+ */
 function notifyContentScript(speed) {
     console.log('Notifying content script about speed changes.');
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
@@ -108,13 +141,13 @@ function notifyContentScript(speed) {
 
 /**
  * Returns a button corresponding to the speed value.
- * @param {double} playbackspeed 
+ * @param {double} playbackSpeed
  * @returns A button corresponding to the speed value.
  */
-function getButtonVisual(playbackspeed) {
+function getButtonVisual(playbackSpeed) {
 	var buttonVisual;
 	
-	switch (playbackspeed) {
+	switch (playbackSpeed) {
 			case HALF:
 				buttonVisual = button_1;
 				break;
@@ -142,13 +175,13 @@ function getButtonVisual(playbackspeed) {
 
 /**
  * Returns a text corresponding to the speed value.
- * @param {double} playbackspeed 
+ * @param {double} playbackSpeed
  * @returns A text corresponding to the speed value.
  */
-function getTextVisual(playbackspeed) {
+function getTextVisual(playbackSpeed) {
 	var textVisual;
 	
-	switch (playbackspeed) {
+	switch (playbackSpeed) {
 			case HALF:
 				textVisual = txt_1;
 				break;
@@ -189,11 +222,9 @@ function updateVisuals(selectedButton, selectedTxt) {
  * @param {button} selectedButton 
  */
 function updateButtonVisual(selectedButton) {
-	chrome.storage.sync.get('playbackspeed', ({ playbackspeed }) => {
-		let prevButtonVisual = getButtonVisual(playbackspeed);
-		prevButtonVisual.className = 'normal';
-		selectedButton.className = 'selected';
-	});
+	let prevButtonVisual = getButtonVisual(currentSpeed);
+    prevButtonVisual.className = 'normal';
+    selectedButton.className = 'selected';
 }
 
 /**
@@ -201,31 +232,25 @@ function updateButtonVisual(selectedButton) {
  * @param {text} selectedTxt 
  */
 function updateTextVisual(selectedTxt) {
-	chrome.storage.sync.get('playbackspeed', ({ playbackspeed }) => {
-		let prevTextVisual = getTextVisual(playbackspeed);		
-		prevTextVisual.style.fontWeight = 'normal';
-		prevTextVisual.style.fontSize = '100%';
-		selectedTxt.style.fontWeight = 'bold';
-		selectedTxt.style.fontSize = '125%';
-	});
+	let prevTextVisual = getTextVisual(currentSpeed);
+    prevTextVisual.style.fontWeight = 'normal';
+    prevTextVisual.style.fontSize = '100%';
+    selectedTxt.style.fontWeight = 'bold';
+    selectedTxt.style.fontSize = '125%';
 }
 
-function initVideoTitle() {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, {getVideo: true}, function(response) {
-            if (!chrome.runtime.lastError) {
-                if (response.reply) {
-                    setVideoTitle(tabs[0].title);
-                } else {
-                    setVideoTitle(NOVIDEOTITLE);
-                }
-            }
-        });
-    });
-}
-
+/**
+ * Sets the video title.
+ */
 function setVideoTitle(title) {
     videoTitle.textContent = title;
 }
 
-init();
+/**
+ * Runs the popup script.
+ */
+function run() {
+    initPopup();
+}
+
+run();
