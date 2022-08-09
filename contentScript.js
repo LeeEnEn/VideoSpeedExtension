@@ -3,48 +3,66 @@ var currentVideo;
 var observer;
 
 /**
- * Gets playback speed and tries to adjust video speed immediately 
- * after the webpage has been loaded.
- */ 
-chrome.storage.sync.get('playbackspeed', ({ playbackspeed }) => {
-	currentSpeed = playbackspeed;
-});
-
-/** 
- * Configures an observer to look out for changes in the DOM with relation to video tag.
- * Once found, adjust video speed accordingly.
+ * Gets playback speed from chrome's storage.
  */
-observer = new MutationObserver(function(mutations) {
-	mutations.forEach(function(mutation) {
-		mutation.addedNodes.forEach(node => {
-		    try {
-		        var newVideo = node.querySelector('video');
-
-		        if (newVideo != null && newVideo.tagName == 'VIDEO') {
-                    newVideo.addEventListener('loadeddata', (event) => {
-                        console.log('Video found using mutation observer, adjusting speed to ' + currentSpeed + 'x');
-                        adjustVideoSpeed(newVideo);
-                        updateVideoTitle();
-
-                    });
-		        }
-		    } catch (error) {
-		        if (error instanceof TypeError) {
-		            console.log('Node changes is not an object!');
-		        }
-		    }
-		});
-	});
-});
+function setPlaybackSpeed() {
+    chrome.storage.sync.get('playbackSpeed', ({ playbackSpeed }) => {
+        currentSpeed = playbackSpeed;
+    });
+}
 
 /**
- * Sets mutation observer to look for changes in the direct children of node,
- * and in all decendants of node.
+ * Configures an observer to look out for changes in the DOM with relation to video tag.
+ * Once found, adjust video speed accordingly. Sets mutation observer to look for changes in the direct children,
+ * and in all descendants of node.
  */
-observer.observe(document.body, {
-	childList: true,
-	subtree: true
-});
+function initObserver() {
+    observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(node => {
+                try {
+                    var newVideo = node.querySelector('video');
+
+                    if (newVideo != null && newVideo.tagName == 'VIDEO') {
+                        newVideo.addEventListener('loadeddata', (event) => {
+                            console.log('Video found using mutation observer, adjusting speed to ' + currentSpeed + 'x');
+                            adjustVideoSpeed(newVideo);
+                            notifyPopup();
+                        });
+                    }
+                } catch (error) {
+                    if (error instanceof TypeError) {
+                        console.log('Node changes is not an object!');
+                    }
+                }
+            });
+        });
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+}
+
+/**
+ * Configures the runtime listener.
+ */
+function initMessageListener() {
+    chrome.runtime.onMessage.addListener(
+        function(message, sender, sendResponse) {
+            var playbackSpeed = message.newPlaybackSpeed;
+
+            if (playbackSpeed != null) {
+                updateVideoSpeed(playbackSpeed);
+                adjustVideoSpeed(currentVideo);
+            } else if (message.getVideo != null) {
+                let isVideoDetected = document.querySelector('video') != null;
+                sendResponse({reply: isVideoDetected});
+            }
+        }
+    );
+}
 
 /**
  * Adjusts video speed.
@@ -67,26 +85,28 @@ function adjustVideoSpeed(video) {
     }
 }
 
+/**
+ * Updates the current speed.
+ * @param {double} playbackSpeed
+ */
 function updateVideoSpeed(playbackSpeed) {
     currentSpeed = playbackSpeed;
 }
 
-function updateVideoTitle() {
+/**
+ * Sends a message to popup to change the video title.
+ */
+function notifyPopup() {
     chrome.runtime.sendMessage({newTitle: true});
 }
 
-chrome.runtime.onMessage.addListener(
-    function(message, sender, sendResponse) {
-        var playbackSpeed = message.newPlaybackSpeed;
+/**
+ * Runs the main program residing in content script.
+ */
+function run() {
+    setPlaybackSpeed();
+    initMessageListener();
+    initObserver();
+}
 
-        if (playbackSpeed != null) {
-            updateVideoSpeed(playbackSpeed);
-            adjustVideoSpeed(currentVideo);
-        }
-
-        if (message.getVideo != null) {
-            let isVideoDetected = document.querySelector('video') != null;
-            sendResponse({reply: isVideoDetected});
-        }
-    }
-);
+run();
